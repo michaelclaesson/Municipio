@@ -1,0 +1,18 @@
+.c-header--neat {
+    .site-header-mobile-top {
+        .c-group {
+            > * {
+                flex: 1;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    }
+
+    .hamburger-menu,
+    .site-header-desktop-nav-items {
+        --c-button-primary-color: var(--color-primary-contrasting);
+    }
+}

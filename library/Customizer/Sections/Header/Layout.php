@@ -180,6 +180,7 @@ class Layout
                 'casual'   => esc_html__('Casual (Small sites)', 'municipio'),
                 'business' => esc_html__('Business (large sites)', 'municipio'),
                 'flexible' => esc_html__('Flexible', 'municipio'),
+                'neat' => esc_html__('Neat', 'municipio'),
             ],
             'output'   => [
                 ['type' => 'controller']
