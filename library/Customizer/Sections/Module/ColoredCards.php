@@ -27,10 +27,10 @@ class ColoredCards {
       'priority'      => 10,
       'default'       => [],
       'fields'        => [
-        'title'         => [
+        'color'         => [
           'type'          => 'color',
           'label'         => esc_html__('Color setting', 'muncipio'),
-          'default'       => '',
+          'default'       => '#000000',
         ],
       ]
     ]);
