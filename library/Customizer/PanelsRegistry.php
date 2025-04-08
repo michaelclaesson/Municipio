@@ -211,6 +211,12 @@ class PanelsRegistry
                     ->setTitle(esc_html__('Text', 'municipio'))
                     ->setActiveCallback(fn() => post_type_exists('mod-text'))
                     ->setFieldsCallback(fn() => new \Municipio\Customizer\Sections\Module\Text('municipio_customizer_section_mod_text'))
+            )->addSection(
+                KirkiPanelSection::create()
+                    ->setID('municipio_customizer_section_mod_colored_cards')
+                    ->setTitle(esc_html__('Colored Cards', 'municipio'))
+                    ->setActiveCallback(fn() => post_type_exists('mod-coloredcards'))
+                    ->setFieldsCallback(fn() => new \Municipio\Customizer\Sections\Module\ColoredCards('municipio_customizer_section_mod_colored_cards'))
             )->register();
     }
 
