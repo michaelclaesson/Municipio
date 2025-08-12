@@ -41,12 +41,19 @@ use Municipio\PostObject\Factory\CreatePostObjectFromWpPost;
 use Municipio\PostObject\Factory\PostObjectFromWpPostFactoryInterface;
 use Municipio\SchemaData\SchemaObjectFromPost\SchemaObjectFromPostFactory;
 use Municipio\SchemaData\SchemaObjectFromPost\SchemaObjectFromPostInterface;
+use Municipio\SchemaData\SchemaPropertiesForm\DisableStandardFieldsOnPostsWithSchemaType\DisableStandardFieldsOnPostsWithSchemaType;
 use Municipio\SchemaData\SchemaPropertiesForm\FormBuilder\Fields\FieldValue\RegisterFieldValue;
 use Municipio\SchemaData\SchemaPropertiesForm\FormBuilder\FormFactory\FormFactory;
+use Municipio\SchemaData\SchemaPropertiesForm\SetPostTitleFromSchemaTitle\SetPostTitleFromSchemaTitle;
 use Municipio\SchemaData\SchemaPropertiesForm\StoreFormFieldValues\FieldMapper\FieldMapper;
 use Municipio\SchemaData\SchemaPropertiesForm\StoreFormFieldValues\NonceValidation\UpdatePostNonceValidatorService;
 use Municipio\SchemaData\SchemaPropertyValueSanitizer\SchemaPropertyValueSanitizer;
+use Municipio\SchemaData\Taxonomy\TaxonomiesFromSchemaType\TaxonomiesFromSchemaType;
+use Municipio\SchemaData\Taxonomy\TaxonomiesFromSchemaType\TaxonomyFactory;
+use Municipio\SchemaData\Taxonomy\TermFactory;
+use Municipio\SchemaData\Utils\SchemaToPostTypesResolver\SchemaToPostTypeResolver;
 use Municipio\SchemaData\Utils\SchemaTypesInUse;
+use WpCronService\WpCronJob\WpCronJob;
 
 /**
  * Class App
@@ -383,6 +390,15 @@ class App
          * Setup Mirrored Post
          */
         (new \Municipio\MirroredPost\MirroredPostFeature($this->wpService))->enable();
+
+        /**
+         * Setup Table of Contents
+         */
+        (new \Municipio\Toc\TocFeature(
+            $this->wpService,
+            $this->acfService
+        )
+        )->enable();
     }
 
     /**
@@ -827,6 +843,21 @@ class App
         ))->addHooks();
 
         /**
+         * Disable standard fields like title, content etc on post types connected to certain schema types.
+         */
+        (new DisableStandardFieldsOnPostsWithSchemaType(
+            ['ExhibitionEvent'],
+            ['title', 'editor'],
+            $this->schemaDataConfig,
+            $this->wpService
+        ))->addHooks();
+
+        /**
+         * Set post title from schema title.
+         */
+        (new SetPostTitleFromSchemaTitle($this->getSchemaObjectFromPostFactory(), $this->wpService))->addHooks();
+
+        /**
          * Store form field values.
          */
         (new \Municipio\SchemaData\SchemaPropertiesForm\StoreFormFieldValues\StoreFormFieldValues(
@@ -837,6 +868,19 @@ class App
             (new \Municipio\SchemaData\SchemaPropertiesForm\StoreFormFieldValues\SchemaPropertiesFromMappedFields\SchemaPropertiesFromMappedFieldsFactory())->create(),
             $this->getPostObjectFromWpPostFactory()
         ))->addHooks();
+
+        /**
+         * Register taxonomies for active schema types and add terms to posts when updating schemaData.
+         */
+        $taxonomiesFactory = new \Municipio\SchemaData\Taxonomy\TaxonomiesFromSchemaType\TaxonomiesFactory(new TaxonomiesFromSchemaType(new TaxonomyFactory(), new SchemaToPostTypeResolver($this->acfService, $this->wpService)), new SchemaTypesInUse($this->wpdb));
+        (new \Municipio\SchemaData\Taxonomy\RegisterTaxonomies($taxonomiesFactory, $this->wpService))->addHooks();
+        (new \Municipio\SchemaData\Taxonomy\AddTermsToPostFromSchema($taxonomiesFactory, new TermFactory(), $this->wpService))->addHooks();
+
+        /**
+         * Clean up unused terms from external content taxonomies.
+         */
+        $cleanupUnusedTerms = new \Municipio\SchemaData\Taxonomy\CleanupUnusedTerms($taxonomiesFactory, $this->wpService);
+        (new WpCronJobManager('municipio_schemadata_', $this->wpService))->register(new WpCronJob('cleanup_unused_terms', time(), 'hourly', [$cleanupUnusedTerms, 'cleanupUnusedTerms'], []));
 
         /**
          * External content
@@ -862,13 +906,6 @@ class App
          * Allow cron to edit posts.
          */
         (new AllowCronToEditPosts($this->wpService))->addHooks();
-
-        /**
-         * Register taxonomies from source configurations.
-         */
-        foreach ($sourceConfigs as $sourceConfig) {
-            (new RegisterTaxonomiesFromSourceConfig($sourceConfig, $this->wpService))->registerTaxonomies();
-        }
 
         /**
          * Setup cron jobs on config change.
