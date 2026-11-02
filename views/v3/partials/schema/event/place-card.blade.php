@@ -1,6 +1,12 @@
- @card([
+@php
+    $placeContent = $place['address'] ?? null;
+    if (!empty($place['description'])) {
+        $placeContent = trim(($placeContent ? $placeContent . '<br>' : '') . e($place['description']));
+    }
+@endphp
+@card([
     'heading' => $lang->placeTitle,
-    'content' => $place['address']
+    'content' => $placeContent
 ])
     @if(!empty($place['lat']) && !empty($place['lng']))
         @slot('beforeContent')
